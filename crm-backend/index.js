@@ -56,6 +56,9 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/search', require('./routes/searchRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 
+
+
+
 // ✅ MongoDB + Server start
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {

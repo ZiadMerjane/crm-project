@@ -7,7 +7,7 @@ const Revenue = require('../models/Revenue');
 const verifyToken = require('../middleware/auth');
 const ExcelJS = require('exceljs');
 
-// ✅ Dashboard stats
+// ✅ Dashboard stats (optional route)
 router.get('/', verifyToken, async (req, res) => {
   try {
     const users = await User.countDocuments();
@@ -24,14 +24,18 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Revenue chart
+// ✅ Revenue chart by view (daily/monthly/yearly)
 router.get('/revenue', verifyToken, async (req, res) => {
-  const view = req.query.view || 'monthly'; // daily | monthly | yearly
+  const view = req.query.view || 'monthly';
   let groupFormat;
 
-  if (view === 'daily') groupFormat = { $dateToString: { format: '%Y-%m-%d', date: '$date' } };
-  else if (view === 'yearly') groupFormat = { $dateToString: { format: '%Y', date: '$date' } };
-  else groupFormat = { $dateToString: { format: '%Y-%m', date: '$date' } };
+  if (view === 'daily') {
+    groupFormat = { $dateToString: { format: '%Y-%m-%d', date: '$date' } };
+  } else if (view === 'yearly') {
+    groupFormat = { $dateToString: { format: '%Y', date: '$date' } };
+  } else {
+    groupFormat = { $dateToString: { format: '%Y-%m', date: '$date' } };
+  }
 
   try {
     const data = await Revenue.aggregate([
@@ -40,19 +44,23 @@ router.get('/revenue', verifyToken, async (req, res) => {
     ]);
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to load revenue chart data' });
+    res.status(500).json({ error: 'Failed to load revenue data' });
   }
 });
 
-// ✅ Export revenue chart as JSON or Excel
+// ✅ Export chart as JSON or Excel
 router.get('/revenue/export/:type', verifyToken, async (req, res) => {
   const view = req.query.view || 'monthly';
   const type = req.params.type;
 
   let groupFormat;
-  if (view === 'daily') groupFormat = { $dateToString: { format: '%Y-%m-%d', date: '$date' } };
-  else if (view === 'yearly') groupFormat = { $dateToString: { format: '%Y', date: '$date' } };
-  else groupFormat = { $dateToString: { format: '%Y-%m', date: '$date' } };
+  if (view === 'daily') {
+    groupFormat = { $dateToString: { format: '%Y-%m-%d', date: '$date' } };
+  } else if (view === 'yearly') {
+    groupFormat = { $dateToString: { format: '%Y', date: '$date' } };
+  } else {
+    groupFormat = { $dateToString: { format: '%Y-%m', date: '$date' } };
+  }
 
   try {
     const data = await Revenue.aggregate([
@@ -86,29 +94,27 @@ router.get('/revenue/export/:type', verifyToken, async (req, res) => {
 
     res.status(400).json({ error: 'Invalid export type' });
   } catch (err) {
-    res.status(500).json({ error: 'Export failed' });
+    res.status(500).json({ error: 'Failed to export revenue data' });
   }
 });
 
-// ✅ Seed fake data
+// ✅ Seed route for test data (call manually in dev)
 router.post('/seed', async (req, res) => {
   try {
-    // Revenues
     await Revenue.insertMany([
-      { amount: 250, date: new Date('2025-01-15'), category: 'Website' },
-      { amount: 400, date: new Date('2025-02-20'), category: 'CRM' },
-      { amount: 180, date: new Date('2025-03-05'), category: 'Consulting' },
-      { amount: 300, date: new Date('2025-04-12'), category: 'E-commerce' },
+      { amount: 200, date: new Date('2025-01-15'), category: 'Website' },
+      { amount: 350, date: new Date('2025-02-20'), category: 'CRM' },
+      { amount: 150, date: new Date('2025-03-05'), category: 'Consulting' },
+      { amount: 400, date: new Date('2025-04-12'), category: 'E-commerce' },
       { amount: 500, date: new Date('2025-05-09'), category: 'Support' },
     ]);
 
-    // Messages
     await Message.insertMany([
-      { from: 'client1@example.com', subject: 'Hello', content: 'Can you help me?' },
-      { from: 'admin@example.com', subject: 'Reminder', content: 'Meeting tomorrow at 10am' },
+      { from: 'client1@example.com', subject: 'Hello', content: 'Need a quote please.' },
+      { from: 'client2@example.com', subject: 'Help', content: 'Can you assist me?' },
     ]);
 
-    res.status(201).json({ message: '✅ Fake data inserted successfully!' });
+    res.status(201).json({ message: '✅ Seed data inserted successfully' });
   } catch (err) {
     res.status(500).json({ error: '❌ Failed to seed data' });
   }
