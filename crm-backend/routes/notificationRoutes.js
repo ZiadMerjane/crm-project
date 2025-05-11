@@ -7,19 +7,24 @@ const verifyToken = require('../middleware/auth');
 router.get('/', verifyToken, async (req, res) => {
   try {
     const email = req.user.email;
-    const notifications = await Notification.find({ userEmail: email }).sort({ createdAt: -1 });
+    const notifications = await Notification.find({ email }).sort({ createdAt: -1 });
     res.json(notifications);
   } catch (err) {
     res.status(500).json({ error: '❌ Failed to fetch notifications' });
   }
 });
 
-// ✅ إضافة Notification
+// ✅ إضافة Notification + Emit real-time
 router.post('/', verifyToken, async (req, res) => {
   const { message } = req.body;
   try {
     const email = req.user.email;
-    const notification = await Notification.create({ userEmail: email, message });
+    const notification = await Notification.create({ email, message });
+
+    // 🔴 Send real-time via Socket.IO
+    const io = req.app.get('io');
+    io.emit('notification', notification);
+
     res.status(201).json(notification);
   } catch (err) {
     res.status(500).json({ error: '❌ Failed to create notification' });

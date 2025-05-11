@@ -1,68 +1,73 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const http = require('http');
-const { Server } = require('socket.io');
 require('dotenv').config();
+
+const express = require('express');
+const http = require('http');
+const cors = require('cors');
+const mongoose = require('mongoose');
+const { Server } = require('socket.io');
+const dotenv = require('dotenv');
+
+dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
 
-// ✅ Socket.io setup
+// ✅ Middleware
+app.use(cors());
+app.use(express.json());
+
+// ✅ MongoDB connection
+mongoose.connect(process.env.MONGO_URL, {
+})
+  .then(() => console.log('✅ MongoDB connected'))
+  .catch((err) => console.error('❌ MongoDB error:', err));
+
+// ✅ Routes
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/contacts', require('./routes/contactRoutes'));
+app.use('/api/messages', require('./routes/messagesRoutes'));
+app.use('/api/activity', require('./routes/activityRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/dashboard/revenue', require('./routes/revenueRoutes'));
+
+
+
+// ✅ Socket.IO setup
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:3000',
+    origin: 'http://localhost:5173',
     methods: ['GET', 'POST'],
-    credentials: true,
   },
 });
 
-// ✅ تخزين socket لكل مستخدم بالإيميل
-const userSockets = new Map();
+app.set('io', io);
+io._userSockets = new Map(); // email => [socketId, ...]
+
 io.on('connection', (socket) => {
-  console.log('🟢 New client connected');
+  console.log('🟢 New client connected:', socket.id);
 
   socket.on('register', (email) => {
-    userSockets.set(email, socket.id);
-    console.log(`✅ Registered ${email} → ${socket.id}`);
+    const existing = io._userSockets.get(email) || [];
+    const updated = [...new Set([...existing, socket.id])]; // unique socket ids
+    io._userSockets.set(email, updated);
+    console.log(`📡 Registered ${email} with socket ${socket.id}`);
   });
 
   socket.on('disconnect', () => {
-    console.log('🔴 Client disconnected');
-    for (const [email, id] of userSockets.entries()) {
-      if (id === socket.id) {
-        userSockets.delete(email);
-        break;
+    console.log('🔴 Client disconnected:', socket.id);
+    for (const [email, socketList] of io._userSockets.entries()) {
+      const filtered = socketList.filter((id) => id !== socket.id);
+      if (filtered.length > 0) {
+        io._userSockets.set(email, filtered);
+      } else {
+        io._userSockets.delete(email);
       }
     }
   });
 });
 
-// ✅ نضيف io & userSockets إلى app
-io._userSockets = userSockets;
-app.set('io', io);
-
-// ✅ Middlewares
-app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
-app.use(express.json());
-
-// ✅ Routes
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/contacts', require('./routes/contactRoutes'));
-app.use('/api/dashboard', require('./routes/dashboardRoutes'));
-app.use('/api/activity', require('./routes/activityRoutes'));
-app.use('/api/messages', require('./routes/messagesRoutes'));
-app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/search', require('./routes/searchRoutes'));
-app.use('/api/notifications', require('./routes/notificationRoutes'));
-
-
-
-
-// ✅ MongoDB + Server start
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log('✅ Connected to MongoDB');
-    server.listen(5000, () => console.log('🚀 Server running on http://localhost:5000'));
-  })
-  .catch((err) => console.error('❌ MongoDB connection error:', err));
+// ✅ Start server
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});

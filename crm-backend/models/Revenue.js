@@ -1,11 +1,11 @@
 const mongoose = require('mongoose');
 
-const RevenueSchema = new mongoose.Schema({
+const revenueSchema = new mongoose.Schema({
   amount: Number,
   date: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
-module.exports = mongoose.model('Revenue', RevenueSchema);
+module.exports = mongoose.model('Revenue', revenueSchema);
